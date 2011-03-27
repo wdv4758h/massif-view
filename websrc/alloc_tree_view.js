@@ -72,6 +72,7 @@ AllocTreeView.prototype.setupItemMenu = function() {
             button.menu.getParent().heapNode.shuffle("top"); });
     new PopupButton(this.itemMenu, "Move to Bottom", function(button) {
             button.menu.getParent().heapNode.shuffle("bottom"); });
+    this.itemMenu.div.style.left="100px";
 };
 
 AllocTreeView.prototype.setupOptionsMenu = function() {

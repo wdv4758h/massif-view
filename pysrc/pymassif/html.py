@@ -280,7 +280,7 @@ def copy_aux_files(outdir):
               'pause.gif', 'massif.css', 'massif_data.js',
               'view.js', 'alloc_tree_view.js', 'popupmenu.js',
               'sparklines_view.js', 'memgraph_view.js',
-              'treemap_view.js']:
+              'treemap_view.js', 'options.gif']:
         copy_websrc_file(f, os.path.join(outdir, f))
 
 def write_html_page_for(heap_seq, filename, times=None):
@@ -313,10 +313,10 @@ if __name__ == '__main__':
         reload(pymassif.heapseq)
         reload(pymassif.snapshot)
     massif_file = open('../../../../arabic-small-parser.massif').read()
-    #print 'Reading snapshots...'
+    print 'Reading snapshots...'
     sshots = pymassif.snapshot.Snapshot.parse_all(massif_file)
     # Merge all the snapshot info into one data structure.
-    #print 'Merging snapshots...'
+    print 'Merging snapshots...'
     heap_seq = pymassif.heapseq.HeapSeq(sshots)
     print 'Writing output...'
     node = write_html_output(heap_seq, 'test')

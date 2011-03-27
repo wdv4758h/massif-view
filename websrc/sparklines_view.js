@@ -15,6 +15,7 @@ SparklinesView.prototype.maximized_size = [1200, null];
 
 SparklinesView.prototype.init = function(header, massifData) {
     View.prototype.init.call(this, header, massifData);
+    this.contentsDiv.className="contents sparklines";
     // Options
     this.itemHeight = null;
     this.displaySizes = false;
