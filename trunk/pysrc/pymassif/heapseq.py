@@ -12,7 +12,7 @@ if __name__ == '__main__':
     sys.path.append('..')
 
 import pymassif.heap
-import collections, textwrap, copy, re
+import collections, textwrap, copy, re, random, math
 
 def HeapSeq(snapshots, include_overhead=True, include_stacks=True):
     heap_seq = HeapSeqNode(None, pymassif.heap.HeapNode.ALLOCATION,
@@ -132,6 +132,10 @@ class HeapSeqNode(object):
         self._collect_bytes_seq(result)
         return result
 
+    @property
+    def peak_time(self):
+        return max((bytes,time) for (time,bytes) in self.bytes_seq.items())[1]
+
     def _collect_bytes_seq(self, result):
         if self.is_leaf:
             for time, bytes in self._bytes_seq.items():
@@ -192,13 +196,13 @@ class HeapSeqNode(object):
 
     def _bargraph(self, indent, times, height=5):
         bytes_seq = self.bytes_seq
-        bytes_seq = [bytes_seq.get(t,0) for t in times]
-        max_bytes = max(bytes_seq)
+        bytes_list = [bytes_seq.get(t,0) for t in times]
+        max_bytes = max(bytes_list)
         row_bytes = max_bytes/float(height)
         rows = [indent]*height
         for i in range(len(rows)):
             rows[i] += '%8s |' % pymassif.util.pprint_size(row_bytes*(i+1))
-            for bytes in bytes_seq:
+            for bytes in bytes_list:
                 if bytes >= row_bytes*(i+1):
                     rows[i] += ':'
                 elif bytes >= row_bytes*(i+0.5):
@@ -215,6 +219,107 @@ class HeapSeqNode(object):
         return textwrap.fill(sizes,
                              initial_indent=indent+'Allocations: ',
                              subsequent_indent=indent+' '*13)
+
+    ######################################################################
+    #{ Javascript Serialization
+    ######################################################################
+
+    def to_javascript(self, times=None, indent=''):
+        if times is None: times = sorted(self.bytes_seq)
+        return self._to_javascript(times, indent, None, self._pick_colors())
+        
+    def _to_javascript(self, times, indent, parent_bytes_list, color_dict):
+        bytes_seq = self.bytes_seq
+        bytes_list = [bytes_seq.get(t,0) for t in times]
+        color = self._js_color(color_dict[self])
+        s = 'new HeapSeqNode(%s, %r,\n' % (self.uid, color)
+        s += '%s %r,\n' % (indent, self.func)
+        s += '%s %r,\n' % (indent, self.short_func)
+        if bytes_list == parent_bytes_list:
+            s += '%s null,' % indent # means "copy from parent"
+        else:
+            s += '%s [%s],' % (indent,
+                               ','.join(self._javascript_size_repr(bytes)
+                                        for bytes in bytes_list))
+        s += '\n%s [' % indent
+        for i, child in enumerate(self.sorted()):
+            if i: s += ',\n%s  ' % indent
+            s += child._to_javascript(times, indent+' ', bytes_list, color_dict)
+        s += '])'
+        return s
+
+    def _javascript_size_repr(self, bytes):
+        # Keep the html file small by not including more precision than
+        # can be usefully displayed.
+        v = bytes/1024./1024.
+        if v>100:  return ('%.1f' % v).rstrip('0').rstrip('.')
+        elif v>10: return ('%.2f' % v).rstrip('0').rstrip('.')
+        else:      return ('%.3f' % v).rstrip('0').rstrip('.')
+    
+    def _js_color(self, color):
+        return '#%s' % ''.join('%02x' % (c*255) for c in color)
+
+    def _pick_colors(self, result=None, color=None, siblings=()):
+        """
+        Return a dictionary mapping from node to color.
+        """
+        if result is None: result = {}
+
+        # Get a list of distractors -- i.e., colors that we should
+        # avoid.  This currently consists of the colors of any
+        # preceeding siblings, plus the colors of the rightmost
+        # descendents of the most recent sibling.
+        distractors = set(result[node] for node in siblings)
+        if siblings:
+            node = siblings[-1]
+            while len(node)>0:
+                node = node.sorted()[-1]
+                distractors.add(result[node])
+                
+        # Pick a color for ourselves.  If a color was specified as a
+        # parameter (because we are the first child of our parent, and
+        # should use the same color), then use that color.  Otherwise,
+        # pick a random color, avoiding the distractors.
+        result[self] = color or self._pick_color(distractors)
+
+        # Pick colors for our children.
+        children = self.sorted()
+        for i, child in enumerate(children):
+            if i==0: child_color = result[self]
+            else: child_color = None
+            child._pick_colors(result, child_color, children[:i])
+
+        return result
+
+    def _pick_color(self, distractors):
+        """
+        Return a random color; but try not to pick one that's close to
+        any of the given distractors.
+        """
+        if distractors:
+            colors = [self._random_color() for i in range(10)]
+            def sortkey(c): return min(self._color_distance(c,d)
+                                       for d in distractors)
+            return sorted(colors, key=sortkey)[-1]
+        else:
+            return self._random_color()
+
+    def _random_color(self):
+        """
+        Return a random color, but not one that's too close to black
+        or to white.  Colors are encoded as (r,g,b) tuples, where each
+        component ranges from 0 to 1.
+        """
+        ranges = [[0,1], [0,1], [0,1]]
+        ranges[random.randint(0,2)][0] = 0.5
+        ranges[random.randint(0,2)][1] = 0.5
+        return tuple(random.uniform(a,b) for (a,b) in ranges)
+        
+    def _color_distance(self, c1, c2):
+        """Return the distance between two colors.  A low distance
+        indicates that the colors are similar."""
+        return math.sqrt(sum((a-b)**2 for a,b in zip(c1,c2)))
+
 
     ######################################################################
     #{ Transforms (do not modify this, but return new HeapSeqNodes)
