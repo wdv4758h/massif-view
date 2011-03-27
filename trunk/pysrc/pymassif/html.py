@@ -10,9 +10,9 @@ if __name__ == '__main__':
 
 import os, sys, re, math, random, time
 from collections import defaultdict
-from massif.heapseq import HeapSeq
-from massif.heap import HeapNode
-from massif.util import copy_data_file, load_data_file, pprint_size
+from pymassif.heapseq import HeapSeq
+from pymassif.heap import HeapNode
+from pymassif.util import copy_websrc_file, load_websrc_file, pprint_size
 
 VIEW_WIDTH, VIEW_HEIGHT = 600, 400
 TREEMAP_BORDER = 1
@@ -281,7 +281,7 @@ def copy_aux_files(outdir):
               'view.js', 'alloc_tree_view.js', 'popupmenu.js',
               'sparklines_view.js', 'memgraph_view.js',
               'treemap_view.js']:
-        copy_data_file(f, os.path.join(outdir, f))
+        copy_websrc_file(f, os.path.join(outdir, f))
 
 def write_html_page_for(heap_seq, filename, times=None):
     #heap_seq = heap_seq.merged_by_func(True, True)
@@ -298,7 +298,7 @@ def write_html_page_for(heap_seq, filename, times=None):
     javascript = JavascriptDataVars(heap_seq, times).to_javascript()
 
     # Generate the html page,
-    html = load_data_file('massif.html') % dict(
+    html = load_websrc_file('massif.html') % dict(
         javascript=javascript,
         timestamp=time.ctime(),
         title='%s' % heap_seq.func)
@@ -306,18 +306,18 @@ def write_html_page_for(heap_seq, filename, times=None):
         out.write(html)
         
 if __name__ == '__main__':
+    import pymassif.snapshot, pymassif.heapseq, pymassif.heap, pymassif.util
     if False:
-        import massif.snapshot, massif.heapseq, massif.heap, massif.util
-        reload(massif.util)
-        reload(massif.heap)
-        reload(massif.heapseq)
-        reload(massif.snapshot)
-    #massif_file = open('arabic-small-parser.massif').read()
+        reload(pymassif.util)
+        reload(pymassif.heap)
+        reload(pymassif.heapseq)
+        reload(pymassif.snapshot)
+    massif_file = open('../../../../arabic-small-parser.massif').read()
     #print 'Reading snapshots...'
-    #sshots = massif.snapshot.Snapshot.parse_all(massif_file)
+    sshots = pymassif.snapshot.Snapshot.parse_all(massif_file)
     # Merge all the snapshot info into one data structure.
     #print 'Merging snapshots...'
-    #heap_seq = massif.heapseq.HeapSeq(sshots)
+    heap_seq = pymassif.heapseq.HeapSeq(sshots)
     print 'Writing output...'
     node = write_html_output(heap_seq, 'test')
     

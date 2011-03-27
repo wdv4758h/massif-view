@@ -11,26 +11,26 @@ if __name__ == '__main__':
     import sys
     sys.path.append('..')
 
-import massif.heap
+import pymassif.heap
 import collections, textwrap, copy, re
 
 def HeapSeq(snapshots, include_overhead=True, include_stacks=True):
-    heap_seq = HeapSeqNode(None, massif.heap.HeapNode.ALLOCATION,
+    heap_seq = HeapSeqNode(None, pymassif.heap.HeapNode.ALLOCATION,
                            None, None, False)
     for sshot in snapshots:
         if sshot.heap_tree is None: continue
         heap_seq.merge(sshot.time, sshot.heap_tree)
         overhead = sshot.mem_heap_extra
         if include_overhead and overhead>0:
-            node = massif.heap.HeapNode(
-                None, massif.heap.HeapNode.ALLOCATION,
-                children=[massif.heap.HeapNode(None, 'Overhead',
+            node = pymassif.heap.HeapNode(
+                None, pymassif.heap.HeapNode.ALLOCATION,
+                children=[pymassif.heap.HeapNode(None, 'Overhead',
                                                bytes=overhead)])
             heap_seq.merge(sshot.time, node)
         if include_stacks and sshot.mem_stacks>0:
-            node = massif.heap.HeapNode(
-                None, massif.heap.HeapNode.ALLOCATION,
-                children=[massif.heap.HeapNode(None, 'Stacks',
+            node = pymassif.heap.HeapNode(
+                None, pymassif.heap.HeapNode.ALLOCATION,
+                children=[pymassif.heap.HeapNode(None, 'Stacks',
                                                bytes=sshot.mem_stacks)])
             heap_seq.merge(sshot.time, node)
             
@@ -152,7 +152,7 @@ class HeapSeqNode(object):
 
     def _sort_key(self):
         return (self.func.startswith('Other Allocations'),
-                self.func==massif.heap.HeapNode.ALLOCATION,
+                self.func==pymassif.heap.HeapNode.ALLOCATION,
                 -self.bytes)
 
     ######################################################################
@@ -160,7 +160,7 @@ class HeapSeqNode(object):
     ######################################################################
 
     def __repr__(self):
-        return '<HeapSeqNode: %s>' % massif.util.pprint_size(self.bytes)
+        return '<HeapSeqNode: %s>' % pymassif.util.pprint_size(self.bytes)
 
     def __str__(self):
         return self.pprint()
@@ -197,7 +197,7 @@ class HeapSeqNode(object):
         row_bytes = max_bytes/float(height)
         rows = [indent]*height
         for i in range(len(rows)):
-            rows[i] += '%8s |' % massif.util.pprint_size(row_bytes*(i+1))
+            rows[i] += '%8s |' % pymassif.util.pprint_size(row_bytes*(i+1))
             for bytes in bytes_seq:
                 if bytes >= row_bytes*(i+1):
                     rows[i] += ':'
@@ -210,7 +210,7 @@ class HeapSeqNode(object):
         return '\n'.join(reversed(rows))
     
     def _alloc_list(self, indent, times):
-        sizes = ', '.join(massif.util.pprint_size(self._bytes_seq.get(t,0))
+        sizes = ', '.join(pymassif.util.pprint_size(self._bytes_seq.get(t,0))
                           for t in times)
         return textwrap.fill(sizes,
                              initial_indent=indent+'Allocations: ',
@@ -357,9 +357,9 @@ class HeapSeqNode(object):
         """
         cutoff_bytes = self.bytes * (cutoff_percent/100.0)
         large_children = [c for c in self if c.bytes >= cutoff_bytes]
-        #and c.func != massif.heap.HeapNode.ALLOCATION]
+        #and c.func != pymassif.heap.HeapNode.ALLOCATION]
         small_children = [c for c in self if c.bytes < cutoff_bytes]
-        #or c.func == massif.heap.HeapNode.ALLOCATION]
+        #or c.func == pymassif.heap.HeapNode.ALLOCATION]
         if (len(large_children)>=min_large_children and
             len(small_children)>=min_small_children):
             max_pct = max(100.0*c.bytes/self.bytes for c in small_children)+.1
@@ -431,8 +431,8 @@ class HeapSeqNode(object):
 
 def _strip_func(func, keep_templates=False, keep_args=False, keep_rtype=False):
     # If it's a special symbol, return it as-is.
-    if func in (massif.heap.HeapNode.ALLOCATION,
-                massif.heap.HeapNode.OTHER_CALLERS,
+    if func in (pymassif.heap.HeapNode.ALLOCATION,
+                pymassif.heap.HeapNode.OTHER_CALLERS,
                 '???', '(below main)'):
         return func
     if func.startswith('Other Allocations ('): return func
@@ -478,14 +478,14 @@ def _strip_func(func, keep_templates=False, keep_args=False, keep_rtype=False):
     return result
 
 if __name__ == '__main__w':
-    import massif.snapshot, massif.heapseq, massif.heap, massif.util
-    reload(massif.util)
-    reload(massif.heap)
-    reload(massif.heapseq)
-    massif_file = open('massif.out.10367').read()
-    sshots = massif.snapshot.Snapshot.parse_all(massif_file)
+    import pymassif.snapshot, pymassif.heapseq, pymassif.heap, pymassif.util
+    reload(pymassif.util)
+    reload(pymassif.heap)
+    reload(pymassif.heapseq)
+    massif_file = open('pymassif.out.10367').read()
+    sshots = pymassif.snapshot.Snapshot.parse_all(massif_file)
     print len(sshots)
-    heap_seq = massif.heapseq.HeapSeq(sshots)
+    heap_seq = pymassif.heapseq.HeapSeq(sshots)
     x = str(heap_seq)
     print heap_seq.inverted().pprint(depth=4)
     

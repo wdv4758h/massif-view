@@ -6,6 +6,9 @@ Utility functions used by pymassif.
 
 import os, shutil
 
+_WEBSRC = os.path.join(os.path.split(__file__)[0],
+                       '..', '..', 'websrc')
+
 _GB = 1024. ** 3
 _MB = 1024. ** 2
 _KB = 1024.
@@ -32,11 +35,11 @@ def pprint_size(bytes):
     else:
         return '%db' % (bytes)
 
-def load_data_file(name):
-    src = os.path.join(os.path.split(__file__)[0], name)
+def load_websrc_file(name):
+    src = os.path.join(_WEBSRC, name)
     return open(src, 'rb').read()
 
-def copy_data_file(name, dst):
-    src = os.path.join(os.path.split(__file__)[0], name)
+def copy_websrc_file(name, dst):
+    src = os.path.join(_WEBSRC, name)
     shutil.copy(src, dst)
     
