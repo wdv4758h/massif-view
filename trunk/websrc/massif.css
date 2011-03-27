@@ -1,0 +1,359 @@
+
+/**********************************************************************
+ * Body/Top-Level Elements
+ **********************************************************************/
+body {
+    background: #585858; color: white;
+}
+
+div.timestamp {
+    font-size: 0.7em;
+    color: #b0b0b0;
+}
+
+/**********************************************************************
+ * Views
+ **********************************************************************/
+
+#views-div {
+    display: inline-block;
+}
+
+#maximized-views {
+}
+#minimized-views {
+    background: #505050;
+    border-top: 1px solid #404040;
+    border-bottom: 1px solid #404040;
+}
+div.view-columns {
+    white-space: nowrap;
+}
+div.view-column {
+    vertical-align: top;
+    display: inline-block;
+}
+div.view {
+    margin: 0.5em; position: relative; 
+    background: #d8ffef; color: black; }
+div.view div.header {
+    background: #a0c0b0; color: black; }
+div.view div.body {
+    padding: 0.5em;
+}
+span.header {
+    margin-left: 1em;  
+    font-weight: bold; }
+
+#minimized-views div.minimized-views-header {
+    font-size: 0.8em;
+    border-bottom: 1px solid black;
+}
+#minimized-views div.view {
+    display: inline-block;
+}
+#minimized-views div.view div.body {
+    display: none;
+}
+
+/*span.minimize-button, span.maximize-button {
+    display: none;
+}*/
+#view-columns span.minimize-button {
+    float: right; height: 19px; width: 14px; display: inline;
+    cursor: pointer; background: url(minus.gif) center left no-repeat; }
+#view-columns span.maximize-button {
+    float: right; height: 19px; width: 16px; display: inline;
+    cursor: pointer; background: url(plus.gif) center left no-repeat; }
+#minimized-views span.restore-button {
+    float: right; height: 19px; width: 16px; display: inline;
+    cursor: pointer; background: url(plus.gif) center left no-repeat; }
+#maximized-views span.restore-button {
+    float: right; height: 19px; width: 16px; display: inline;
+    cursor: pointer; background: url(minus.gif) center left no-repeat; }
+#view-columns span.options-button, #maximized-views span.options-button {
+    float: left; height: 19px; width: 19px; display: inline;
+    cursor: pointer; background: url(options.gif) center left no-repeat; }
+
+#memgraph, #treemap-and-timeline, #sparklines, #difflines {
+    margin-left: auto;
+    margin-right: auto;
+/*    display: inline-block*/
+}
+
+/**********************************************************************
+ * Allocation Tree
+ **********************************************************************/
+ul.alloc-tree { 
+    margin: 0; }
+ul.alloc-tree  li { 
+    list-style: none; } 
+ul.alloc-tree, ul.alloc-tree ul , ul.alloc-tree li { 
+    margin-left:10px; padding:0px; }
+ul.alloc-tree  li .bullet { 
+    padding-left: 15px; }
+ul.alloc-tree li.liOpen .bullet { 
+    cursor: pointer; background: url(minus.gif)  center left no-repeat; }
+ul.alloc-tree li.liClosed .bullet { 
+    cursor: pointer; background: url(plus.gif)   center left no-repeat; }
+ul.alloc-tree li.liBullet .bullet { 
+    cursor: default; background: url(bullet.gif) center left no-repeat; }
+ul.alloc-tree li.liOpen ul { display: block; }
+ul.alloc-tree li.liClosed ul { display: none; }
+ul.alloc-tree li.liOpen ul { border-left: 1px solid #ccc; }
+ul.alloc-tree li { white-space: nowrap; }
+ul.alloc-tree li.liOpen    { color: #888888; }
+ul.alloc-tree li.liClosed, li.liBullet  { color: #888888; background: #aaaaaa; }
+ul.alloc-tree li { position: relative; }
+ul.alloc-tree li.liOpen span.func_name { font-size: 0.8em; }
+ul.alloc-tree li.liClosed span.func_name { font-size: 1.0em; }
+ul.alloc-tree li.liBullet span.func_name { font-size: 1.0em; }
+
+/* The sizebars are small bar used to show how much memory each node in 
+ * the allocation tree takes.  It has two children: sizebar1 is the
+ * colored bar, and sizebar2 contains text indicating what percent
+ * of the total memory is taken up by this node. */
+div.sizebar {
+    display: inline-block; vertical-align: middle;
+    border: 1px solid black;
+    background: #aaa; color: black;
+    position: relative; overflow:hidden;
+    font-size: 0.65em; margin-left: 0.5em;
+    height: 1em; width: 4em; 
+}
+div.sizebar_bar {
+    position: absolute; background: #ddd; height: 100% }
+div.sizebar_text {
+    position: absolute; left: 5px; }
+
+span.heap_size { color: #000; display: inline-block; width: 4em;
+    text-align: right; padding: 0 0.5em 0 0; }
+span.func_name { padding: 0 0.5em; }
+
+.move-allocsite-up,
+.move-allocsite-down {
+    cursor: pointer;
+    display: inline-block; vertical-align: middle;
+    border: 1px solid #ddd; background: #eee; color: black;
+    width: 1em; text-align: center; 
+    text-decoration:none;
+    font-size: 0.7em;
+}
+
+/* Gray-out the arrows that don't do anything. */
+li:first-child > span.move-allocsite-up {
+    color: #ddd; }
+li:last-child > span.move-allocsite-down {
+    color: #ddd; }
+
+/**********************************************************************
+ * Tree Map
+ **********************************************************************/
+div.treemap, div.treemap-v, div.treemap-h, div.treemap-hgrp, div.treemap-vgrp {
+    vertical-align:top; text-align: left;
+    overflow:hidden; white-space:nowrap; }
+
+div.treemap-h, div.treemap-v, div.treemap {
+    border-style: solid; border-color: black;
+}
+
+/* Grayscale graident for treemap */
+div.treemap 
+{ background: #707070; }
+div.treemap div.treemap-h,
+div.treemap div.treemap-v
+{ background: #a0a0a0; }
+div.treemap div div.treemap-h,
+div.treemap div div.treemap-v
+{ background: #b0b0b0; }
+div.treemap div div div.treemap-h,
+div.treemap div div div.treemap-v
+{ background: #b8b8b8; }
+div.treemap div div div div.treemap-h,
+div.treemap div div div div.treemap-v
+{ background: #c0c0c0; }
+div.treemap div div div div div.treemap-h,
+div.treemap div div div div div.treemap-v
+{ background: #d4d4d4; }
+div.treemap div div div div div div.treemap-h,
+div.treemap div div div div div div.treemap-v
+{ background: #e0e0e0; }
+div.treemap div div div div div div div.treemap-h,
+div.treemap div div div div div div div.treemap-v
+{ background: #e8e8e8; }
+div.treemap div div div div div div div div.treemap-h,
+div.treemap div div div div div div div div.treemap-v
+{ background: #f0f0f0; }
+div.treemap div div div div div div div div div.treemap-h,
+div.treemap div div div div div div div div div.treemap-v
+{ background: #f8f8f8; }
+div.treemap div div div div div div div div div div.treemap-h,
+div.treemap div div div div div div div div div div.treemap-v
+{ background: #ffffff; }
+
+div.treemap-h { display: inline-block; }
+div.treemap-hgrp { display: inline-block; }
+
+div.func-h {
+    padding: 0; margin: 0 0 0 1px; height:1em;
+    overflow: visible; 
+    display: block; cursor: pointer; }
+
+div.func-v {
+    float: right;
+    display: inline-block; cursor: pointer; 
+    padding: 0; margin: 0; 
+    overflow: visible;
+    width: 1em;
+    /* FF3.5+: */
+    -moz-transform: rotate(90deg);  
+    /* Opera 10.5: */
+    -o-transform: rotate(90deg);  
+    /* Saf3.1+, Chrome: */
+    -webkit-transform: rotate(90deg);  
+    /* IE6,IE7: */
+    filter:  progid:DXImageTransform.Microsoft.BasicImage(rotation=1);  
+    /* IE8: */
+    -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=1)"; 
+}
+
+/**********************************************************************
+ * Timeline
+ **********************************************************************/
+.timeline {
+    display: inline-block;
+    white-space: nowrap;
+}
+.timeline-bar {
+    display: inline-block;
+    height: 10px;
+    border: 1px solid black;
+    margin-left: 6px;
+    padding: 0;
+    font-size: 1px;
+    background: #d0d0d0;
+    vertical-align: middle;
+}
+.timeline img {
+    vertical-align: middle;
+    margin-left: 3px;
+}
+div.timepoint, div.timepoint-selected {
+    display: inline-block;
+    height: 10px;
+}
+div.timepoint { 
+    border-right: 1px solid #888; 
+    border-left: 1px solid #888; 
+    background: #d0d0d0;
+}
+div.timepoint-selected { 
+    border-left: 1px solid #008; 
+    border-right: 1px solid #008;
+    background: #58a;
+}
+
+/**********************************************************************
+ * Sparklines & Difflines
+ **********************************************************************
+ * Note: we override some undocumented CSS classes that are used by
+ * the Google visualization.  This is a little dangerous, since the
+ * visualizaiton implementatin could potentially change.
+ */
+#sparklines, #difflines {
+    border: 2px solid #29a;
+    padding: 2px; background: white;
+    /*overflow: auto;*/
+    white-space: normal;
+}
+
+tr td.google-visualization-sparkline-default {
+    color: black; background: white; }
+
+tr td.google-visualization-sparkline-over,
+tr td.google-visualization-sparkline-selected {
+    color: white; background: #404080; }
+
+tr td.google-visualization-sparkline-default:last-child,
+tr td.google-visualization-sparkline-over:last-child,
+tr td.google-visualization-sparkline-selected:last-child {
+    padding: 0; 
+    border-top: 1px solid #606060; 
+    border-left: 1px solid #606060; 
+    border-right: 1px solid #606060; 
+}
+
+tr:last-child td.google-visualization-sparkline-default:last-child,
+tr:last-child td.google-visualization-sparkline-over:last-child,
+tr:last-child td.google-visualization-sparkline-selected:last-child {
+    padding: 0; 
+    border: 1px solid #606060; 
+}
+
+
+
+
+
+/**********************************************************************
+ * Popup Menus
+ **********************************************************************/
+
+.popup-menu-container {
+    background: #303030; /* Shadow for the popup menu */
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 10000;
+    display: none;
+}
+
+table.popup-menu {
+    color: black; background: white; font-weight: normal;
+    border-collapse:collapse;
+    border: 1px solid #888;
+    padding: 0; margin: 0;
+    position: relative;
+    left: -5px; top: -5px;
+    z-index: 10001;
+}
+
+table.popup-menu td {
+    cursor: pointer; 
+    padding: 0 0.5em; 
+}
+
+table.popup-menu td.disabled {
+    cursor: default; color: #888888;
+}
+
+table.popup-menu tr.new-section {
+    border-top: 1px solid black;
+}
+
+table.popup-menu .mouse-over {
+    background: #ccccff;
+}
+
+/* Checked & unchecked menu items */
+span.menu-item-checked                                { color: black; }
+span.menu-item-unchecked                              { color: white; }
+table.popup-menu .mouse-over span.menu-item-unchecked { color: #ccccff; }
+
+/* Color popup menu */
+#color-popup-menu {
+    left: 2em;
+    top: 1.5em; }
+#color-popup-menu table.popup-menu td {
+    width: 1em;
+    height: 1em;
+    padding: 0; }
+#color-popup-menu table.popup-menu td.mouse-over {
+    border: 1px solid white; }
+#color-popup-menu table.popup-menu td {
+    border-top: 1px solid black;
+    border-left: 1px solid black; }
+
+/* Alloc tree item popup menu */
+#alloc-tree-item-popup-menu {
+    left: 100px; }
+
