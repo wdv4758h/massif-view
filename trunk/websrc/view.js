@@ -50,6 +50,7 @@ View.prototype = {
         this.maximizeButton.className = "maximize-button";
         this.restoreButton.className = "restore-button";
         this.optionsButton.className = "options-button";
+        this.contentsDiv.className = "contents";
         this.bodyDiv.className = "body";
         this.errorDiv.style.display = "none";
         

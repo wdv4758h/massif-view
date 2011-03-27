@@ -75,10 +75,9 @@ span.header {
     float: left; height: 19px; width: 19px; display: inline;
     cursor: pointer; background: url(options.gif) center left no-repeat; }
 
-#memgraph, #treemap-and-timeline, #sparklines, #difflines {
+div.contents {
     margin-left: auto;
     margin-right: auto;
-/*    display: inline-block*/
 }
 
 /**********************************************************************
@@ -260,7 +259,7 @@ div.timepoint-selected {
  * the Google visualization.  This is a little dangerous, since the
  * visualizaiton implementatin could potentially change.
  */
-#sparklines, #difflines {
+div.sparklines {
     border: 2px solid #29a;
     padding: 2px; background: white;
     /*overflow: auto;*/
@@ -339,21 +338,4 @@ span.menu-item-checked                                { color: black; }
 span.menu-item-unchecked                              { color: white; }
 table.popup-menu .mouse-over span.menu-item-unchecked { color: #ccccff; }
 
-/* Color popup menu */
-#color-popup-menu {
-    left: 2em;
-    top: 1.5em; }
-#color-popup-menu table.popup-menu td {
-    width: 1em;
-    height: 1em;
-    padding: 0; }
-#color-popup-menu table.popup-menu td.mouse-over {
-    border: 1px solid white; }
-#color-popup-menu table.popup-menu td {
-    border-top: 1px solid black;
-    border-left: 1px solid black; }
-
-/* Alloc tree item popup menu */
-#alloc-tree-item-popup-menu {
-    left: 100px; }
 
