@@ -4,7 +4,7 @@ A data structure that encodes the contents of a single massif heap dump.
 """
 
 import re
-import massif.util
+import pymassif.util
 
 def HeapTree(s):
     """
@@ -93,7 +93,7 @@ class HeapNode(object):
 
     def __repr__(self):
         return '<HeapNode for %r: %s>' % (
-            self.short_func, massif.util.pprint_size(self.bytes))
+            self.short_func, pymassif.util.pprint_size(self.bytes))
 
     def __str__(self):
         return self.print_massif_tree()

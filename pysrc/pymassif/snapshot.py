@@ -3,7 +3,7 @@
 A data structure that encodes the contents of a single massif snapshot.
 """
 
-import massif.util, massif.heap
+import pymassif.util, pymassif.heap
 import re
 
 class Snapshot(object):
@@ -71,7 +71,7 @@ class Snapshot(object):
     def _parse(cls, m):
         """Helper for parse_*() methods"""
         if m.group('heap_tree'):
-            heap_tree = massif.heap.HeapTree(m.group('heap_tree'))
+            heap_tree = pymassif.heap.HeapTree(m.group('heap_tree'))
         else:
             heap_tree = None
         return cls(num=int(m.group('num')),
@@ -82,7 +82,7 @@ class Snapshot(object):
                    heap_tree=heap_tree)
 
     def __repr__(self):
-        size = massif.util.pprint_size(self.mem_heap)
+        size = pymassif.util.pprint_size(self.mem_heap)
         return '<Snapshot %d (%s)>' % (self.num, size)
 
     def __str__(self):

@@ -8,7 +8,7 @@ def print_callgrind(heap_tree):
     Return a string containing a callgrind-style output file for the
     given massif heap tree.
 
-    @type heap_tree: `massif.heap.HeapNode`
+    @type heap_tree: `pymassif.heap.HeapNode`
     @param heap_tree: The heap tre that should be displayed.
     """
     lines = []
@@ -20,7 +20,7 @@ def print_callgrind(heap_tree):
 
 _CALLGRIND_HEADER = """\
 version: 1
-creator: massif.py
+creator: pymassif
 pid: N/A
 cmd: N/A
 part: 1
