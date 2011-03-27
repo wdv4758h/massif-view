@@ -135,7 +135,7 @@ class HeapNode(object):
         #assert heap_tree.print_massif_tree() == s
         return heap_tree
 
-    ALLOCATION = 'Allocation'
+    ALLOCATION = 'Heap allocation (malloc/new/etc)'
     OTHER_CALLERS = 'Other callers (below threshold)'
     @classmethod
     def _mk_heap_node(cls, indent, num_children, bytes, addr,
