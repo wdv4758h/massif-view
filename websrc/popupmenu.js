@@ -45,7 +45,7 @@ function PopupMenu(parent) {
         }
         // Clear any old mosue-over marks.
         for (var i=0; i<this.buttons.length; ++i)
-            this.buttons[i].td.class="";
+            this.buttons[i].td.className="";
         this.div.style.display = "block";
     }
 
