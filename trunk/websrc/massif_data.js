@@ -3,15 +3,38 @@
 /********************************************************************
  * Heap Sequence Node
  ********************************************************************/
-function HeapSeqNode(uid, color, funcname, shortFuncname, allocs, children) {
-    // Constants
+function HeapSeqNode(uid, color, funcRType, funcContext, funcName,
+                     funcTemplateArgs, funcArgs, funcQualifiers,
+                     funcSourceFile, funcSourceLine, allocs, children) {
+    // Unique identifier for this node:
     this.uid = uid;
-    this.funcname = funcname;
-    this.shortFuncname = shortFuncname;
+    // Parsed function signature:
+    this.funcRType = funcRType;                // return type
+    this.funcContext = funcContext;            // context (namespace/classes)
+    this.funcName = funcName;                  // basic name
+    this.funcTemplateArgs = funcTemplateArgs;  // template args
+    this.funcArgs = funcArgs;                  // arguments
+    this.funcQualifiers = funcQualifiers;      // qualifiers (const/volatile)
+    // Function location (if available):
+    this.funcSourceFile = funcSourceFile;      // source file
+    this.funcSourceLine = funcSourceLine;      // source line
+    // Allocation information:
     this.allocs = allocs; // Maps time -> mbytes
+    // Parent pointer (set by parent):
     this.parent = null;
+    // List of child nodes:
     this.children = children;
-    this.massifData = null; // Set when added to the MassifData.
+    // Pointer to the massifData that owns this heap (set by MassifData)
+    this.massifData = null;
+
+    // Backwards compat for now:
+    this.funcname = (this.funcContext + this.funcName + 
+                     this.funcTemplateArgs + this.funcArgs);
+    if (this.funcSourceFile && this.funcSourceLine)
+        this.funcname += " ("+this.funcSourceFile+":"+this.funcSourceLine+")";
+    else if (this.funcSourceFile)
+        this.funcname += " ("+this.funcSourceFile+")";
+    this.shortFuncname = this.funcname;
 
     // Private variables
     this._isExpanded = (children.length>0) ? false : null;
@@ -60,6 +83,19 @@ function HeapSeqNode(uid, color, funcname, shortFuncname, allocs, children) {
          for (var i=0; i<this.allocs.length; ++i)
              max = Math.max(max, this.allocs[i]);
          return max; },
+
+ fullFuncName: function() {
+         var s = (this.funcContext + this.funcName +
+                  this.funcTemplateArgs + this.funcArgs);
+         if (this.funcRType) s = this.funcRType + " " + s;
+         if (this.funcQualifiers) s += " " + this.funcQualifiers;
+         if (this.funcSourceFile) {
+             s += " (" + this.funcSourceFile;
+             if (this.funcSourceLine) s += ":"+this.funcSourceLine;
+             s += ")";
+         }
+         return s;
+     },
 
  //--------------------------------------------------------------------
  // Modifiers

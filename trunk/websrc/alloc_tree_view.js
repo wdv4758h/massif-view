@@ -23,6 +23,9 @@ AllocTreeView.prototype.init = function(header, massifData) {
     this.sizebarShows = "percentOfTotal";
     this.hideBoxesVisible = false;
     this.shuffleButtonsVisible = false;
+    this.showFuncContext = true;
+    this.showFuncArgs = false;
+    this.showFuncLocation = true;
     // Create the allocation tree.
     var time = this.massifData.selectedTime();
     var heapSeq = this.massifData.heapSeq;
@@ -78,6 +81,33 @@ AllocTreeView.prototype.setupItemMenu = function() {
 AllocTreeView.prototype.setupOptionsMenu = function() {
     var thisView = this;
     new PopupOptionGroup(this.optionsMenu, {
+        choices: [["Show function context", true],
+                  ["Hide function context", false]],
+                set: function(v) { 
+                    if (v != thisView.showFuncContext) {
+                        thisView.showFuncContext=v; 
+                        thisView.updateNames(); }},
+                get: function(v) { return thisView.showFuncContext; }
+        });
+    new PopupOptionGroup(this.optionsMenu, {
+        choices: [["Show funciton arguments", true],
+                  ["Hide function arguments", false]],
+                set: function(v) { 
+                    if (v != thisView.showFuncArgs) {
+                        thisView.showFuncArgs=v; 
+                        thisView.updateNames(); }},
+                get: function(v) { return thisView.showFuncArgs; }
+        });
+    new PopupOptionGroup(this.optionsMenu, {
+        choices: [["Show short location", true],
+                  ["Hide function location", false]],
+                set: function(v) { 
+                    if (v != thisView.showFuncLocation) {
+                        thisView.showFuncLocation=v; 
+                        thisView.updateNames(); }},
+                get: function(v) { return thisView.showFuncLocation; }
+        });
+    new PopupOptionGroup(this.optionsMenu, {
         choices: [["Show size as a percentage of total", "percentOfTotal"], 
                   ["Show size as a percentage of parent", "percentOfParent"],
                   ["Show size as absolute value", "mbytes"]], 
@@ -131,12 +161,12 @@ AllocTreeView.prototype.createItem = function(parent, heapNode, time,
         li.style.color = heapNode.fgcolor;
         li.style.background = heapNode.bgcolor;
     }
-    li.title = heapNode.funcname;
+    li.title = heapNode.fullFuncName();
     this.createBullet(li);
     this.createHideBox(li, heapNode.isHidden());
     this.createArrows(li);
     this.createSizebar(li);
-    this.createLabel(li, heapNode.shortFuncname);
+    this.createLabel(li, heapNode);
     this.createList(li, heapNode.children, time, openCutoff);
     parent.appendChild(li);
 };
@@ -196,11 +226,27 @@ AllocTreeView.prototype.createHideBox = function(li, isHidden) {
     li.hideBox = hideBox;
 };
 
-AllocTreeView.prototype.createLabel = function(li, label) {
+AllocTreeView.prototype.createLabel = function(li, heapNode) {
     var nameSpan = document.createElement("SPAN");
+    var label = this.labelFor(heapNode);
     nameSpan.appendChild(document.createTextNode(label));
     nameSpan.className = "func_name";
     li.appendChild(nameSpan);
+    li.label = nameSpan;
+};
+
+AllocTreeView.prototype.labelFor = function(heapNode) {
+    var s = heapNode.funcName;
+    if (this.showFuncContext)
+        s = heapNode.funcContext + s + heapNode.funcTemplateArgs;
+    if (this.showFuncArgs)
+        s += heapNode.funcArgs + heapNode.funcQualifiers;
+    if (this.showFuncLocation && heapNode.funcSourceFile) {
+        s += " (" + heapNode.funcSourceFile;
+        if (heapNode.funcSourceLine) s += ":"+heapNode.funcSourceLine;
+        s += ")";
+    }
+    return s;
 };
 
 //*******************************************************************
@@ -329,24 +375,36 @@ getAllocTreeViewClickContextNode = function(event) {
 AllocTreeView.prototype._walk = function(callback, node) {
     if (!node) node = this.massifData.heapSeq;
     for (var i=0; i<node.children.length; ++i) {
-        callback.call(this, node.children[i]);
-        this._walk(callback, node.children[i]);
+        var child = node.children[i];
+        var li = this.nodeToItem[child.uid];
+        if (li) {
+            callback.call(this, child, li);
+            this._walk(callback, node.children[i]);
+        }
     }
 };
+
+AllocTreeView.prototype.updateNames = function() {
+    this._walk(function(heapNode, li) {
+            var newLabel = this.labelFor(heapNode);
+            li.label.removeChild(li.label.firstChild);
+            li.label.appendChild(document.createTextNode(newLabel));
+        });
+}
+
+
 
 AllocTreeView.prototype.updateHideBoxVisibility = function(visible) {
     this.hideBoxesVisible = visible;
     this.massifData.setHidingEnabled(visible);
-    this._walk(function(heapNode) {
-            var li = this.nodeToItem[heapNode.uid];
+    this._walk(function(heapNode, li) {
             li.hideBox.style.display = visible ? "" : "none";
         });
 };
 
 AllocTreeView.prototype.updateShuffleButtonVisibility = function(visible) {
     this.shuffleButtonsVisible = visible;
-    this._walk(function(heapNode) {
-            var li = this.nodeToItem[heapNode.uid];
+    this._walk(function(heapNode, li) {
             li.upArrow.style.display = visible ? "" : "none";
             li.dnArrow.style.display = visible ? "" : "none";
         });

@@ -15,7 +15,7 @@ from pymassif.heapseq import HeapSeq
 from pymassif.heap import HeapNode
 from pymassif.util import copy_websrc_file, load_websrc_file, pprint_size
 
-MERGE_LINENOS = False
+MERGE_LINENOS = True
 MERGE_OVERLOADS = False
 MERGE_TEMPLATES = False
 
@@ -32,7 +32,7 @@ def write_html_output(heap_seq, outdir):
     #bu_heap.promote_if_parent_matches('std::', '__gnu_cxx::', 'boost::')
     #write_html_page_for(bu_heap, os.path.join(outdir, 'bu_alloc.html'), times)
     #print '  - Top-down top page'
-    #write_html_page_for(heap_seq.inverted(),os.path.join(outdir, 'td_top.html'), times)
+    write_html_page_for(heap_seq.inverted(),os.path.join(outdir, 'td_top.html'), times)
     node = heap_seq
     node = node.sorted()[1]
     #for i in range(1): node = node.sorted()[0]
@@ -60,9 +60,9 @@ var massifData = new MassifData({
 
 def write_html_page_for(heap_seq, filename, times=None):
     #heap_seq = heap_seq.merged_by_func(True, True)
-    if MERGE_LINENOS:
-        heap_seq = heap_seq.merged_by_func(MERGE_OVERLOADS,
-                                           MERGE_TEMPLATES)
+#     if MERGE_LINENOS:
+#         heap_seq = heap_seq.merged_by_func(MERGE_OVERLOADS,
+#                                            MERGE_TEMPLATES)
     #heap_seq.collapse_to_depth(20)
     #heap_seq.collapse_if_smaller_than(heap_seq.bytes*0.005)
     heap_seq.group_small_nodes()
@@ -90,13 +90,17 @@ if __name__ == '__main__':
         reload(pymassif.heap)
         reload(pymassif.heapseq)
         reload(pymassif.snapshot)
-    massif_file = open('../../../../arabic-small-parser.massif').read()
+    #massif_file = open('../../../../arabic-small-parser.massif').read()
+    #massif_file = open('../../../../massif.out.28353').read()
     print 'Reading snapshots...'
+    x = pymassif.snapshot.Snapshot.parse_iter(massif_file)
+    sshots = [x.next() for i in range(40)]
     sshots = pymassif.snapshot.Snapshot.parse_all(massif_file)
     # Merge all the snapshot info into one data structure.
     print 'Merging snapshots...'
-    heap_seq = pymassif.heapseq.HeapSeq(sshots)
+    #heap_seq = pymassif.heapseq.HeapSeq(sshots)
     print 'Writing output...'
+    copy_aux_files('test')
     node = write_html_output(heap_seq, 'test')
     
 

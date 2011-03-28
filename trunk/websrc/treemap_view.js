@@ -231,7 +231,8 @@ TreemapView.prototype.populateTreemapDiv = function(targetDiv, nodes,
                 else
                     groupWidth -= this.textSize;
             }
-            labelDiv.appendChild(document.createTextNode(node.funcname));
+            var label = node.funcContext + node.funcName;
+            labelDiv.appendChild(document.createTextNode(label));
             nodeDiv.appendChild(labelDiv);
 
             // Add the contents of the node (if it's open).
