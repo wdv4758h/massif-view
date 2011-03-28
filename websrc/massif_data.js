@@ -117,8 +117,10 @@ function HeapSeqNode(uid, color, funcRType, funcContext, funcName,
          this.massifData.notifyChangeNodeHighlighted(this, highlighted);
      },
  shuffle: function(direction) {
-         this._shuffle(direction);
-         this.massifData.notifyNodeShuffled(this);
+         var somethingChanged = this._shuffle(direction);
+         if (somethingChanged)
+             this.massifData.notifyNodeShuffled(this);
+         return somethingChanged;
      },
 
  expandTo: function(bytes) {
@@ -208,17 +210,21 @@ function HeapSeqNode(uid, color, funcRType, funcContext, funcName,
                     newSiblings.push(this);
             }
         } else if (direction == "top") {
-            if (this == siblings[0]) return false;
+            if (this == siblings[0])
+                return this.parent.shuffle(direction);
             newSiblings.push(this);
             for (var i=0; i<siblings.length; i++)
                 if (siblings[i] != this)
                     newSiblings.push(siblings[i]);
+            this.parent.shuffle(direction);
         } else if (direction == "bottom") {
-            if (this == siblings[siblings.length-1]) return false;
+            if (this == siblings[siblings.length-1])
+                return this.parent.shuffle(direction);
             for (var i=0; i<siblings.length; i++)
                 if (siblings[i] != this)
                     newSiblings.push(siblings[i]);
             newSiblings.push(this);
+            this.parent.shuffle(direction);
         }
         this.parent.children = newSiblings;
         return true;
