@@ -38,6 +38,7 @@ SparklinesView.prototype.init = function(header, massifData) {
 };
 
 SparklinesView.prototype.onChangeNodeHighlighted = function(node, hl) {
+    if (this.minimized) return;
     if (hl) {
         var nodes = (this.isNested ? massifData.visibleNodes() : 
                      massifData.plottedNodes());

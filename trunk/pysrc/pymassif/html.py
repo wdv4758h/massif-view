@@ -93,14 +93,14 @@ if __name__ == '__main__':
     #massif_file = open('../../../../arabic-small-parser.massif').read()
     #massif_file = open('../../../../massif.out.28353').read()
     print 'Reading snapshots...'
-    x = pymassif.snapshot.Snapshot.parse_iter(massif_file)
-    sshots = [x.next() for i in range(40)]
-    sshots = pymassif.snapshot.Snapshot.parse_all(massif_file)
+    #x = pymassif.snapshot.Snapshot.parse_iter(massif_file)
+    #sshots = [x.next() for i in range(40)]
+    #sshots = pymassif.snapshot.Snapshot.parse_all(massif_file)
     # Merge all the snapshot info into one data structure.
     print 'Merging snapshots...'
     #heap_seq = pymassif.heapseq.HeapSeq(sshots)
     print 'Writing output...'
     copy_aux_files('test')
-    node = write_html_output(heap_seq, 'test')
+    #node = write_html_output(heap_seq, 'test')
     
 

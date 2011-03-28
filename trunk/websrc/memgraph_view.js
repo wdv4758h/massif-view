@@ -23,6 +23,8 @@ MemgraphView.prototype.init = function(header, massifData) {
             thisView.draw(); });
     this.massifData.addChangeNodeHighlightedCallback(function(node, val) {
             thisView.onChangeNodeHighlighted(node, val); });
+    this.massifData.addSelectTimeCallback(function(time) {
+            thisView.onSelectTime(time); });
 };
 
 MemgraphView.prototype.getColors = function(nodes) {
@@ -82,12 +84,14 @@ MemgraphView.prototype.makeDataTable = function(nodes) {
  * displayed by the AreaChart; instead, it takes the maximum value and
  * "rounds it up" using a fairly opaque method.  This function
  * attempts to guess what value the AreaChart will round up to, so we
- * can display nice little boxes to show which plot is highlighted
- * when the user mouses over an allocation site. 
+ * can display nice little arrows to show which plot is highlighted
+ * when the user mouses over an allocation site in another view.
  *
- * The implementation was based on drawing a bunch of plots and seeing
+ * The actual values were derived drawing a bunch of plots and seeing
  * what they did; so it may be incorrect in some cases, and certainly
  * could become incorrect if the implementation of AreaChart changes.
+ *
+ * And yes, it's intentional that some of these are ">" and some are ">=".
  */
 MemgraphView.prototype.getMaxDisplayedValueForAreaChart = function(v) {
     // Special cases for the 10-100 range
@@ -96,7 +100,7 @@ MemgraphView.prototype.getMaxDisplayedValueForAreaChart = function(v) {
     if (40<v && v<=44) return 44;
     if (44<v && v< 45) return 48;
     
-    // Scale the v to a number between 1 and 10.
+    // Scale the value v to a number between 1 and 10.
     var oom = 1; // order of magnitude
     while (v <= 1) { v *= 10; oom /= 10; }
     while (v > 10) { v /= 10; oom *= 10; }
@@ -193,7 +197,7 @@ MemgraphView.prototype.setupOptionsMenu = function() {
 MemgraphView.prototype.createHighlightArrow = function() {
     this.hlBox = document.createElement("DIV");
     this.hlBox.style.position = "absolute";
-    this.hlBox.style.width = "5px";
+    this.hlBox.style.width = "3px";
     this.hlBox.style.display="none";
 
     this.hlArrow = document.createElement("SPAN");
@@ -204,50 +208,83 @@ MemgraphView.prototype.createHighlightArrow = function() {
 
     this.contentsDiv.appendChild(this.hlBox);
     this.contentsDiv.appendChild(this.hlArrow);
+    this.precomputeHighlightInfo();
+};
+
+MemgraphView.prototype.precomputeHighlightInfo = function() {
+    var plottedNodes = this.massifData.plottedNodes();
+    var boxTime = this.massifData.selectedTime();
+    var arrowTime = this.massifData.times.length-1;
+    this.highlightInfo = []; // maps uid -> info.
+    
+    // Get the total size shown by the graph.
+    var boxTotalSize = 0;
+    var arrowTotalSize = 0;
+    if (this.isRelative) {
+        for (var i=0; i<plottedNodes.length; ++i) {
+            boxTotalSize += plottedNodes[i].allocs[boxTime];
+            arrowTotalSize += plottedNodes[i].allocs[arrowTime];
+        }
+    } else {
+        boxTotalSize = this.maxTotalSize;
+        arrowTotalSize = this.maxTotalSize;
+    }
+    
+    // Get the size of the view.
+    var divHeight = this.contentsDiv.offsetHeight;
+    var divWidth = this.contentsDiv.offsetWidth;
+    var marginX = (divWidth-this.chartAreaWidth)/2
+    var marginY = (divHeight-this.chartAreaHeight)/2
+    var boxRatio = this.chartAreaHeight/boxTotalSize;
+    var arrowRatio = this.chartAreaHeight/arrowTotalSize;
+    var chartBottom = marginY + this.chartAreaHeight;
+
+    // X positions.
+    this.hlBoxRight = (marginX + this.chartAreaWidth * (1-boxTime/arrowTime));
+    this.hlArrowRight = marginX-1;
+
+    // Precompute info for each plotted node.
+    var boxSizeSoFar = 0;
+    var arrowSizeSoFar = 0;
+    for (var i=plottedNodes.length-1; i>=0; --i) {
+        var node = plottedNodes[i]
+        var boxSize = node.allocs[boxTime];
+        var arrowSize = node.allocs[arrowTime];
+        var boxTop = (this.isStacked) ? boxSizeSoFar+boxSize : boxSize;
+        var arrowTop = (this.isStacked) ? arrowSizeSoFar+arrowSize : arrowSize;
+        this.highlightInfo[node.uid] = {
+            boxTop: (chartBottom-boxTop*boxRatio),
+            boxHeight: boxSize*boxRatio,
+            arrowMiddle: (chartBottom-(arrowTop-arrowSize/2)*arrowRatio)};
+        boxSizeSoFar += boxSize;
+        arrowSizeSoFar += arrowSize;
+    }
+};
+
+MemgraphView.prototype.onSelectTime = function(node, time) {
+    if (this.minimized) return;
+    this.precomputeHighlightInfo();
 }
 
 MemgraphView.prototype.onChangeNodeHighlighted = function(node, val) {
+    if (this.minimized) return;
     if (val && node.isPlotted() && !this.isSettingHighlight) {
-        var time = this.massifData.times.length-1;
-        
-        var plottedNodes = this.massifData.plottedNodes();
-        var totalSize = 0;
-        var nodeTop = null;
-        var nodeSize = node.allocs[time];
-        for (var i=plottedNodes.length-1; i>=0; --i) {
-            var size = plottedNodes[i].allocs[time];
-            if (plottedNodes[i] == node) {
-                if (this.isStacked)
-                    nodeTop = totalSize+size;
-                else
-                    nodeTop = size;
-            }
-            totalSize += size;
-        }
-        var maxTotalSize = this.isRelative ? totalSize : this.maxTotalSize;
-        
-        var divHeight = this.contentsDiv.offsetHeight;
-        var divWidth = this.contentsDiv.offsetWidth;
-        var marginX = (divWidth-this.chartAreaWidth)/2
-        var marginY = (divHeight-this.chartAreaHeight)/2
-        
-        // Display the box.
-        this.hlBox.style.display="";
-        this.hlBox.style.background = node.bgcolor;
-        this.hlBox.style.right = (marginX-5)+"px";
-        this.hlBox.style.top = (marginY + this.chartAreaHeight *
-                                (1-(nodeTop/maxTotalSize))) + "px";
-        this.hlBox.style.height = (this.chartAreaHeight *
-                                     (nodeSize/maxTotalSize))+"px";
-        // Display the arrow.
+        var hlInfo = this.highlightInfo[node.uid];
+
+        this.hlBox.style.display = "";
         this.hlArrow.style.display="";
         var arrowHeight = this.hlArrow.offsetHeight;
         var arrowWidth = this.hlArrow.offsetWidth;
-        this.hlArrow.style.color = node.bgcolor;
-        this.hlArrow.style.right = (marginX-6-arrowWidth)+"px";
-        this.hlArrow.style.top = (marginY + this.chartAreaHeight *
-                                  (1-((nodeTop-(nodeSize/2))/maxTotalSize))
-                                  - arrowHeight/2) + "px";
+        var boxWidth = this.hlBox.offsetWidth;
+
+        this.hlBox.style.background = node.hl_bgcolor;
+        this.hlBox.style.right = (this.hlBoxRight-boxWidth/2)+"px";
+        this.hlBox.style.top = hlInfo.boxTop+"px";
+        this.hlBox.style.height = hlInfo.boxHeight+"px";
+
+        this.hlArrow.style.color = node.hl_bgcolor;
+        this.hlArrow.style.right = (this.hlArrowRight-arrowWidth)+"px";
+        this.hlArrow.style.top = (hlInfo.arrowMiddle-arrowHeight/2)+"px";
     } else {
         this.hlArrow.style.display="none";
         this.hlBox.style.display="none";
