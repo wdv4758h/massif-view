@@ -138,7 +138,7 @@ SparklinesView.prototype.getMinAndMax = function(nodes) {
 
 SparklinesView.prototype.labelFor = function(node) {
     var label = this.indentFor(node);
-    label += node.shortFuncname;
+    label += node.funcName;
     if (this.displaySizes)
         label += this.sizeFor(node)
     return label;

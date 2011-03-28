@@ -35,7 +35,7 @@ class HeapNode(object):
         # We only record bytes at the leaf nodes:
         assert children==() or bytes is None
         self._addr = addr
-        self._func = func
+        self._func = FunctionName.parse(func)
         self._children = list(children)
         self._bytes = bytes
         self._source_file = source_file
@@ -93,7 +93,7 @@ class HeapNode(object):
 
     def __repr__(self):
         return '<HeapNode for %r: %s>' % (
-            self.short_func, pymassif.util.pprint_size(self.bytes))
+            self.func, pymassif.util.pprint_size(self.bytes))
 
     def __str__(self):
         return self.print_massif_tree()
@@ -137,6 +137,9 @@ class HeapNode(object):
 
     ALLOCATION = 'Heap allocation (malloc/new/etc)'
     OTHER_CALLERS = 'Other callers (below threshold)'
+    UNKNOWN_FUNC = '???'
+    BELOW_MAIN = '(below main)'
+    OTHER_ALLOCATIONS = 'Other Allocations'
     @classmethod
     def _mk_heap_node(cls, indent, num_children, bytes, addr,
                       func, children=None):
@@ -171,4 +174,202 @@ class HeapNode(object):
         r'(?P<indent>\s*)n(?P<num_children>\d+): (?P<bytes>\d+) '
         r'((?P<addr>[0-9-zA-ZxX]+): )?'
         r'(?P<func>.+)')
+
+
+
+class FunctionName(object):
+    """
+    A class used to parse a function name into its component piece.
+    E.g., the function:
+
+        void some_ns::SomeClass<A,B>::operator new(unsigned long)
+
+    Would be divided into:
+
+          rtype: void
+        context: some_ns::SomeClass<A,B>
+           name: operator new
+           args: (unsigned long)
+
+    Special names, such as \"(below main)\", are stored as the 'name'
+    field and the remaining fields are left blank.
+    """
+    SPECIAL_FUNCTIONS = (HeapNode.ALLOCATION,
+                         HeapNode.OTHER_CALLERS,
+                         HeapNode.UNKNOWN_FUNC,
+                         HeapNode.BELOW_MAIN,
+                         HeapNode.OTHER_ALLOCATIONS)
+
+    def __init__(self, rtype, context, name, template_args, args, qualifiers):
+        self.rtype = rtype
+        self.context = context
+        self.name = name
+        self.template_args = template_args
+        self.args = args
+        self.qualifiers = qualifiers
+        if self.rtype:
+            assert not re.search(r'\boperator\b', self.rtype)
+        if self.context:
+            assert not re.search(r'\boperator\b', self.context)
+
+    def __repr__(self):
+        raise ValueError('shoudl this really be called?')
+
+    def __str__(self):
+        s = ''
+        if self.rtype: s += self.rtype+' '
+        if self.context: s += self.context
+        if self.name: s += self.name
+        if self.template_args: s += self.template_args
+        if self.args: s += self.args
+        if self.qualifiers: s += ' '+self.qualifiers
+        return s
+
+    def __cmp__(self, other):
+        return (cmp(self.__class__, other.__class__) or
+                cmp(self.pieces(), other.pieces()))
+
+    def __eq__(self, other):
+        return (self.__class__ is other.__class__ and
+                self.pieces()==other.pieces())
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.pieces())
+
+    def pieces(self):
+        """
+        Return a tuple containing the pieces that make up the name of
+        this function.  The tuple has the form:
+        (rtype, context, name, template_args, args, qualifiers)
+        """
+        return (self.rtype, self.context, self.name,
+                self.template_args, self.args, self.qualifiers)
+
+    # anonymous namespace?
+    _IDENTIFIER_RE = re.compile(r'^\w+$')
+    _FUNC_RE = re.compile(r"""
+        (?P<rtype>              ([^<>\(\)]    | <[^<>]*> )+  \s  )?
+        (?P<context>          ( ([^<>\(\)\s:] | <[^<>]*> )+ ::)+ )?
+        (?P<name>               ([^<>\(\)\s:]            )+      )
+        (?P<template_args>                      <[^<>]*>         )?
+        (?P<args>             \( [^\(\)]* \)                     )
+        (?P<qualifiers>       (\s\w+)+                           )?
+        $""", re.VERBOSE)
+
+    @classmethod
+    def _mangle_typecast_type(cls, m):
+        s = m.group()
+        s = s.replace('::', '@COLON@@COLON@')
+        s = s.replace('<', '{').replace('>', '}')
+        return s
+
+    @classmethod
+    def _mangle(cls, s):
+        """
+        Make various changes to the function name 's' that make it
+        easier to parse with a regexp.  You can reverse these changes
+        with _restore(s).
+        """
+        # Replace various 'operator xyz' function names, since they're
+        # hard to parse.
+        if 'operator' in s:
+            s = re.sub(r'\b(operator ?)\(\)', r'\1@CALL@', s)
+            s = re.sub(r'\b(operator ?)<<',   r'\1@LT@@LT@', s)
+            s = re.sub(r'\b(operator ?)<',    r'\1@LT@', s) # also covers <=
+            s = re.sub(r'\b(operator ?)>>',   r'\1@GT@@GT@', s)
+            s = re.sub(r'\b(operator ?)>',    r'\1@GT@', s) # also covers >=
+            s = re.sub(r'\b(operator ?)->',   r'\1-@GT@', s) # also covers ->*
+            s = re.sub(r'\b(operator )',      r'operator@SPACE@', s)
+            s = s.replace('@ ', '@@SPACE@') # eg space after operator<<.
+
+            # type-cast operator:
+            s = re.sub(r'\boperator@SPACE@\w[^\(]+\(',
+                       cls._mangle_typecast_type, s)
+
+        # WARNING: type casting operators that contain :: or <...> are
+        # not handled yet.  E.g.: operator std::set<int>().
+
+        # Replace "(anonymous namespace)" so we don't get confused by
+        # the parenthases.
+        s = s.replace('(anonymous namespace)', '@ANONYMOUS_NAMESPACE@')
+
+        # Replace the '<' and '>' characters in nested template
+        # argument lists with '{' and '}', respectively.  This makes
+        # it possible to parse the function name using a single
+        # regexp.  Use _restore_nested_templates() to restore the '{'
+        # and '}' back to their original '<' and '>'.
+        template_depth = [0]
+        def subfunc(m):
+            if m.group()=='<':
+                template_depth[0]+=1
+                if template_depth[0]>1: return '{'
+            elif m.group()=='>':
+                template_depth[0]-=1
+                assert template_depth[0] >= 0
+                if template_depth[0]>=1: return '}'
+            return m.group()
+        s = re.sub(r'[<>]|[^<>]+', subfunc, s)
+        assert template_depth[0] == 0
+
+        return s
+
+    @classmethod
+    def _restore(cls, s):
+        """Undo the changes made by _mangle()."""
+        if s is None: return None
+        s = s.replace('{', '<').replace('}', '>')
+        s = s.replace('@ANONYMOUS_NAMESPACE@', '(anonymous namespace)')
+        s = s.replace('@CALL@', '()')
+        s = s.replace('@SPACE@', ' ')
+        s = s.replace('@LT@', '<')
+        s = s.replace('@GT@', '>')
+        s = s.replace('@COLON@', ':')
+        return s
+
+    x = set()
+    @classmethod
+    def parse(cls, function_string, verbose=False):
+        # Is it a special function?
+        for special in cls.SPECIAL_FUNCTIONS:
+            if function_string.startswith(special):
+                return cls(None, None, function_string, None, None, None)
+
+        # Is it a bare function name without args (eg __libc_csu_init)?
+        if cls._IDENTIFIER_RE.match(function_string):
+            return cls(None, None, function_string, None, None, None)
+
+        s = cls._mangle(function_string)
+        m = cls._FUNC_RE.match(s)
+        if not m:
+            print 'Warning: unable to parse function name:'
+            print '  %r' % function_string
+            return cls(None, None, function_string, None, None, None)
+            
+            raise ValueError('Unable to parse: %r' % function_string)
+
+        rtype = cls._restore(m.group('rtype'))
+        context = cls._restore(m.group('context'))
+        name = cls._restore(m.group('name'))
+        template_args = cls._restore(m.group('template_args'))
+        args = cls._restore(m.group('args'))
+        qualifiers = cls._restore(m.group('qualifiers'))
+        if rtype: rtype = rtype.strip()
+        if qualifiers: qualifiers = qualifiers.strip()
+        key = (rtype, context, name, template_args, args, qualifiers)
+        if verbose and key not in cls.x:
+            cls.x.add(key)
+            print function_string
+            if rtype:         print '         rtype: %s' % rtype
+            if context:       print '       context: %s' % context
+            if name:          print '          name: %s' % name
+            if template_args: print ' template_args: %s' % template_args
+            if args:          print '          args: %s' % args
+            if qualifiers:    print '    qualifiers: %s' % qualifiers
+            print
+        return cls(rtype, context, name, template_args, args, qualifiers)
+
+
 

@@ -15,23 +15,19 @@ import pymassif.heap
 import collections, textwrap, copy, re, random, math
 
 def HeapSeq(snapshots, include_overhead=True, include_stacks=True):
-    heap_seq = HeapSeqNode(None, pymassif.heap.HeapNode.ALLOCATION,
-                           None, None, False)
+    alloc = pymassif.heap.HeapNode.ALLOCATION
+    heap_seq = HeapSeqNode(None, alloc, None, None, False)
     for sshot in snapshots:
         if sshot.heap_tree is None: continue
         heap_seq.merge(sshot.time, sshot.heap_tree)
         overhead = sshot.mem_heap_extra
         if include_overhead and overhead>0:
-            node = pymassif.heap.HeapNode(
-                None, pymassif.heap.HeapNode.ALLOCATION,
-                children=[pymassif.heap.HeapNode(None, 'Overhead',
-                                               bytes=overhead)])
+            node = pymassif.heap.HeapNode(None, alloc, children=[
+                pymassif.heap.HeapNode(None, 'Overhead', bytes=overhead)])
             heap_seq.merge(sshot.time, node)
         if include_stacks and sshot.mem_stacks>0:
-            node = pymassif.heap.HeapNode(
-                None, pymassif.heap.HeapNode.ALLOCATION,
-                children=[pymassif.heap.HeapNode(None, 'Stacks',
-                                               bytes=sshot.mem_stacks)])
+            node = pymassif.heap.HeapNode(None, alloc, children=[
+                pymassif.heap.HeapNode(None, 'Stacks', bytes=sshot.mem_stacks)])
             heap_seq.merge(sshot.time, node)
             
                            
@@ -46,6 +42,10 @@ class HeapSeqNode(object):
     """
     _uid_counter = 0
     def __init__(self, addr, func, source_file, source_line, is_leaf):
+        if isinstance(func, basestring):
+            print 'parsing: %r' % func
+            func = pymassif.heap.FunctionName.parse(func)
+        assert isinstance(func, pymassif.heap.FunctionName)
         self._addr = addr
         self._func = func
         self._source_file = source_file
@@ -109,10 +109,6 @@ class HeapSeqNode(object):
     is_leaf = property(lambda self: self._bytes_seq is not None)
     
     @property
-    def short_func(self):
-        return _strip_func(self.func)
-
-    @property
     def bytes(self):
         return max(self.bytes_seq.values()+[0])
 
@@ -155,8 +151,8 @@ class HeapSeqNode(object):
         return sorted(self._children, key=self.__class__._sort_key)
 
     def _sort_key(self):
-        return (self.func.startswith('Other Allocations'),
-                self.func==pymassif.heap.HeapNode.ALLOCATION,
+        return (self.func.name.startswith('Other Allocations'),
+                self.func.name==pymassif.heap.HeapNode.ALLOCATION,
                 -self.bytes)
 
     ######################################################################
@@ -177,7 +173,7 @@ class HeapSeqNode(object):
         if indent:
             s = '%s+- %s' % (indent[:-2], self.func)
         else:
-            s = self.func
+            s = '%s' % self.func
         if depth == 0: return s
         if self.is_leaf or True:
             if bargraphs:
@@ -232,9 +228,11 @@ class HeapSeqNode(object):
         bytes_seq = self.bytes_seq
         bytes_list = [bytes_seq.get(t,0) for t in times]
         color = self._js_color(color_dict[self])
-        s = 'new HeapSeqNode(%s, %r,\n' % (self.uid, color)
-        s += '%s %r,\n' % (indent, self.func)
-        s += '%s %r,\n' % (indent, self.short_func)
+        s = 'new HeapSeqNode(%s, %r,\n%s ' % (self.uid, color, indent)
+        for piece in self.func.pieces() + (self.source_file, self.source_line):
+            if piece is None: s += "'', "
+            else: s += "%r, " % piece
+        s += '\n'
         if bytes_list == parent_bytes_list:
             s += '%s null,' % indent # means "copy from parent"
         else:
@@ -363,44 +361,44 @@ class HeapSeqNode(object):
                 child._invert(dst, ancestors)
         ancestors.pop()
 
-    def merged_by_func(self, merge_overloads=False, merge_templates=True):
-        if self.is_leaf: return self
+#     def merged_by_func(self, merge_overloads=False, merge_templates=True):
+#         if self.is_leaf: return self
 
-        # Construct a new result node.
-        result = HeapSeqNode(self.addr, self.func, self.source_file,
-                             self.source_line, False)
+#         # Construct a new result node.
+#         result = HeapSeqNode(self.addr, self.func, self.source_file,
+#                              self.source_line, False)
         
-        # Group the nodes by their function.
-        func2nodes = collections.defaultdict(list)
-        for node in self:
-            func = node.func
-            func = _strip_func(node.func, not merge_templates,
-                               not merge_overloads, not merge_overloads)
-            func2nodes[func].append(node)
+#         # Group the nodes by their function.
+#         func2nodes = collections.defaultdict(list)
+#         for node in self:
+#             func = node.func
+#             func = _strip_func(node.func, not merge_templates,
+#                                not merge_overloads, not merge_overloads)
+#             func2nodes[func].append(node)
 
-        # Merge each group of nodes into a single merged child node
-        for (func, nodes) in func2nodes.items():
-            assert all(node.is_leaf==nodes[0].is_leaf for node in nodes)
-            source_lines = set(n.source_line for n in nodes
-                               if n.source_line is not None)
-            if source_lines: source_line = ', '.join(sorted(source_lines))
-            else: source_line = None
-            #if len(source_lines)==1: source_line=source_lines.pop()
-            #else: source_line=None
-            merged_child = HeapSeqNode(nodes[0].addr, func,
-                                       nodes[0].source_file,
-                                       source_line,
-                                       nodes[0].is_leaf)
-            if nodes[0].is_leaf:
-                for node in nodes:
-                    node._collect_bytes_seq(merged_child._bytes_seq)
-            else:
-                for node in nodes:
-                    merged_child._children.extend(node._children)
-                merged_child = merged_child.merged_by_func(merge_overloads,
-                                                           merge_templates)
-            result._children.append(merged_child)
-        return result
+#         # Merge each group of nodes into a single merged child node
+#         for (func, nodes) in func2nodes.items():
+#             assert all(node.is_leaf==nodes[0].is_leaf for node in nodes)
+#             source_lines = set(n.source_line for n in nodes
+#                                if n.source_line is not None)
+#             if source_lines: source_line = ', '.join(sorted(source_lines))
+#             else: source_line = None
+#             #if len(source_lines)==1: source_line=source_lines.pop()
+#             #else: source_line=None
+#             merged_child = HeapSeqNode(nodes[0].addr, func,
+#                                        nodes[0].source_file,
+#                                        source_line,
+#                                        nodes[0].is_leaf)
+#             if nodes[0].is_leaf:
+#                 for node in nodes:
+#                     node._collect_bytes_seq(merged_child._bytes_seq)
+#             else:
+#                 for node in nodes:
+#                     merged_child._children.extend(node._children)
+#                 merged_child = merged_child.merged_by_func(merge_overloads,
+#                                                            merge_templates)
+#             result._children.append(merged_child)
+#         return result
 
     ######################################################################
     #{ Modifiers (change this HeapSeq)
@@ -462,9 +460,7 @@ class HeapSeqNode(object):
         """
         cutoff_bytes = self.bytes * (cutoff_percent/100.0)
         large_children = [c for c in self if c.bytes >= cutoff_bytes]
-        #and c.func != pymassif.heap.HeapNode.ALLOCATION]
         small_children = [c for c in self if c.bytes < cutoff_bytes]
-        #or c.func == pymassif.heap.HeapNode.ALLOCATION]
         if (len(large_children)>=min_large_children and
             len(small_children)>=min_small_children):
             max_pct = max(100.0*c.bytes/self.bytes for c in small_children)+.1
@@ -534,53 +530,54 @@ class HeapSeqNode(object):
             if child._remove(node): return True
         return False
 
-def _strip_func(func, keep_templates=False, keep_args=False, keep_rtype=False):
-    # If it's a special symbol, return it as-is.
-    if func in (pymassif.heap.HeapNode.ALLOCATION,
-                pymassif.heap.HeapNode.OTHER_CALLERS,
-                '???', '(below main)'):
-        return func
-    if func.startswith('Other Allocations ('): return func
+# def _strip_func(func, keep_templates=False, keep_args=False, keep_rtype=False):
+#     # If it's a special symbol, return it as-is.
+#     if func in (pymassif.heap.HeapNode.ALLOCATION,
+#                 pymassif.heap.HeapNode.OTHER_CALLERS,
+#                 '???', '(below main)'):
+#         return func
+#     if func.startswith('Other Allocations ('): return func
     
-    # If it's already just a name (eg __libc_csu_init) then return it as-is
-    if re.match('^\w+$', func): return func
+#     # If it's already just a name (eg __libc_csu_init) then return it as-is
+#     if re.match('^\w+$', func): return func
     
-    # Otherwise, we'll need to parse it.
-    original_func = func
-    func = re.sub(' \(in [^\(\)]+\)$', '', func)
-    template_depth = 0
-    started_args = False
-    result = ''
-    for piece in re.findall(r'\(anonymous namespace\)|\(below main\)|'
-                            r'operator ?[^\s\(]+ |[<> \(\)]|.', func):
-        #print template_depth, piece, `result`
-        if piece=='<':
-            template_depth += 1
-            if keep_templates: result += piece
-        elif piece == '>':
-            template_depth -= 1
-            if keep_templates: result += piece
-        elif piece == '>>' and template_depth > 1:
-            template_depth -= 2
-            if keep_templates: result += piece
-        elif piece == ' ' and template_depth==0:
-            if not (started_args or re.search(r'\boperator$', result)):
-                if keep_rtype: result += piece
-                else: result = ''
-            else: result += piece
-        elif piece == '(':
-            if not started_args:
-                started_args = True
-                assert template_depth==0, original_func
-                if not keep_args: break
-            result += piece
-        elif piece == ')':
-            result += piece
-        elif template_depth == 0 or keep_templates: result += piece
-    if not result or not started_args:
-        print 'Warning: trouble parsing: %r' % original_func
-        result = func # eg for "(below main)" or "Other callers".
-    return result
+#     # Otherwise, we'll need to parse it.
+#     original_func = func
+#     func = re.sub(' \(in [^\(\)]+\)$', '', func)
+#     template_depth = 0
+#     started_args = False
+#     result = ''
+#     for piece in re.findall(r'\(anonymous namespace\)|\(below main\)|'
+#                             r'operator ?[^\s\(]+ |[<> \(\)]|.', func):
+#         #print template_depth, piece, `result`
+#         if piece=='<':
+#             template_depth += 1
+#             if keep_templates: result += piece
+#         elif piece == '>':
+#             template_depth -= 1
+#             if keep_templates: result += piece
+#         elif piece == '>>' and template_depth > 1:
+#             template_depth -= 2
+#             if keep_templates: result += piece
+#         elif piece == ' ' and template_depth==0:
+#             if not (started_args or re.search(r'\boperator$', result)):
+#                 #print 'RTYPE %r' % original_func
+#                 if keep_rtype: result += piece
+#                 else: result = ''
+#             else: result += piece
+#         elif piece == '(':
+#             if not started_args:
+#                 started_args = True
+#                 assert template_depth==0, original_func
+#                 if not keep_args: break
+#             result += piece
+#         elif piece == ')':
+#             result += piece
+#         elif template_depth == 0 or keep_templates: result += piece
+#     if not result or not started_args:
+#         print 'Warning: trouble parsing: %r' % original_func
+#         result = func # eg for "(below main)" or "Other callers".
+#     return result
 
 if __name__ == '__main__w':
     import pymassif.snapshot, pymassif.heapseq, pymassif.heap, pymassif.util
