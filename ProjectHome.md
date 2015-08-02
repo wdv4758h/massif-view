@@ -1,0 +1,1 @@
+Massif-view consists of a Python script that reads in the output of the Valgrind massif tool (a memory profiler), and generates a webpage that allows the user to visualize and explore the data.
